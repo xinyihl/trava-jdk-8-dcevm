@@ -33,6 +33,7 @@ jobs:
       run: |
         choco install cygwin
         choco install vs2010sdk
+        choco install wget
         C:\tools\cygwin\cygwinsetup.exe -q -P make,unzip,automake,autoconf,zip
         git config --system core.longpaths true
         git config --global core.autocrlf false
