@@ -16,8 +16,6 @@ jobs:
     strategy:
       matrix:
         os:
-          - ubuntu-18.04  # xenial equivalent
-          - macOS-10.15
           - windows-2019
 
     steps:
@@ -29,13 +27,6 @@ jobs:
         echo "SOURCE_JDK_BRANCH=dcevm8u282b08" >> $GITHUB_ENV
         echo "SOURCE_JDK_TAG=dcevm8u282b08" >> $GITHUB_ENV
         echo "HSWAP_AGENT_DOWNLOAD_URL=https://github.com/HotswapProjects/HotswapAgent/releases/download/RELEASE-1.4.1/hotswap-agent-1.4.1.jar" >> $GITHUB_ENV
-
-    - name: Install dependencies (Linux)
-      if: matrix.os == 'ubuntu-18.04'
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y libx11-dev libxext-dev libxrender-dev libxtst-dev libxt-dev libcups2-dev libasound2
-        sudo ln -s /usr/lib/x86_64-linux-gnu/libasound.so.2 /usr/lib/x86_64-linux-gnu/libasound.so
 
     - name: Install dependencies (Windows)
       if: matrix.os == 'windows-2019'
@@ -50,24 +41,6 @@ jobs:
       run: |
         git clone --depth 1 --branch travaopenjdk https://github.com/TravaOpenJDK/openjdk-build.git
 
-    - name: Build (Linux)
-      if: matrix.os == 'ubuntu-18.04'
-      run: |
-        export JDK8_BOOT_DIR="$PWD/openjdk-build/jdk-8"
-        mkdir -p "$JDK8_BOOT_DIR"
-        wget -q -O - "https://api.adoptopenjdk.net/v2/binary/releases/openjdk8?openjdk_impl=hotspot&os=linux&arch=x64&release=latest&type=jdk" | tar xpzf - --strip-components=1 -C ${JDK8_BOOT_DIR}
-        bash -c "cd openjdk-build && export LOG=info && ./makejdk-any-platform.sh --branch \"${SOURCE_JDK_BRANCH}\" --tag \"${SOURCE_JDK_TAG}\" --jdk-boot-dir ${JDK8_BOOT_DIR} --build-variant dcevm --hswap-agent-download-url \"${HSWAP_AGENT_DOWNLOAD_URL}\" --target-file-name java8-openjdk-dcevm-linux.tar.gz jdk8u"
-
-    - name: Build (macOS)
-      if: matrix.os == 'macOS-10.15'
-      run: |
-        export JDK8_BOOT_DIR="$PWD/openjdk-build/jdk-8"
-        mkdir -p "$JDK8_BOOT_DIR"
-        wget -q -O - "https://api.adoptopenjdk.net/v2/binary/releases/openjdk8?openjdk_impl=hotspot&os=mac&arch=x64&release=latest&type=jdk" | tar xpzf - --strip-components=1 -C ${JDK8_BOOT_DIR}
-        JDK8_BOOT_DIR="${JDK8_BOOT_DIR}/Contents/Home"
-        export JDK8_BOOT_DIR="${JDK8_BOOT_DIR}"
-        bash -c "cd openjdk-build && export LOG=info && ./makejdk-any-platform.sh --branch \"${SOURCE_JDK_BRANCH}\" --tag \"${SOURCE_JDK_TAG}\" --jdk-boot-dir ${JDK8_BOOT_DIR} --build-variant dcevm --hswap-agent-download-url \"${HSWAP_AGENT_DOWNLOAD_URL}\" --target-file-name java8-openjdk-dcevm-macos.tar.gz --configure-args \"--with-toolchain-type=clang\" --make-args \"COMPILER_WARNINGS_FATAL=false\" jdk8u"
-
     - name: Build (Windows)
       if: matrix.os == 'windows-2019'
       run: |
@@ -78,31 +51,3 @@ jobs:
       with:
         name: builds
         path: openjdk-build/workspace/target/*
-
-  deploy:
-    needs: build
-    runs-on: ubuntu-18.04
-    if: startsWith(github.ref, 'refs/tags/')
-
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v2
-
-    - name: Download artifacts
-      uses: actions/download-artifact@v2
-      with:
-        name: builds
-        path: builds
-
-    - name: Create release
-      id: create_release
-      uses: softprops/action-gh-release@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        tag_name: ${{ github.ref_name }}
-        name: Release ${{ github.ref_name }}
-        draft: false
-        prerelease: false
-        files: builds/*
-
